@@ -1,26 +1,28 @@
-import { useState } from "react";
-import { useParams, Link } from "react-router";
-import { mockProcesses, mockTimelines } from "../data/mockData";
+import { useState, useEffect, useCallback } from "react";
+import { useParams, Link, useNavigate } from "react-router";
+import { getProcesso, getTimeline, mudarEtapa } from "../data/api";
+import { Process, TimelineEvent, STAGE_LABELS, ProcessStage } from "../types";
+import { useAuth } from "../auth/AuthContext";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Button } from "../components/ui/button";
 import { Badge } from "../components/ui/badge";
 import { Textarea } from "../components/ui/textarea";
-import { 
-  ArrowLeft, 
-  Calendar, 
-  User, 
-  Building2, 
-  MapPin, 
+import {
+  ArrowLeft,
+  Calendar,
+  User,
+  Building2,
+  MapPin,
   Clock,
   CheckCircle2,
   AlertCircle,
   Edit,
   FileText,
-  MessageSquare
+  MessageSquare,
+  Loader2,
 } from "lucide-react";
 import StatusBadge from "../components/StatusBadge";
 import PriorityBadge from "../components/PriorityBadge";
-import { STAGE_LABELS } from "../types";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
@@ -42,24 +44,74 @@ import {
 import { Label } from "../components/ui/label";
 
 export default function ProcessDetail() {
-  const { id } = useParams();
-  const processo = mockProcesses.find(p => p.id === id);
-  const timeline = mockTimelines[id!] || [];
-  
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [novaEtapa, setNovaEtapa] = useState("");
-  const [observacoes, setObservacoes] = useState("");
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
-  if (!processo) {
+  const [processo, setProcesso] = useState<Process | null>(null);
+  const [timeline, setTimeline] = useState<TimelineEvent[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [erro, setErro] = useState<string | null>(null);
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [novaEtapa, setNovaEtapa] = useState<ProcessStage | "">("");
+  const [observacoes, setObservacoes] = useState("");
+  const [salvando, setSalvando] = useState(false);
+  const [erroModal, setErroModal] = useState<string | null>(null);
+
+  const carregarDados = useCallback(async () => {
+    if (!id) return;
+    try {
+      const [proc, tl] = await Promise.all([getProcesso(id), getTimeline(id)]);
+      setProcesso(proc);
+      setTimeline(tl);
+    } catch (e: unknown) {
+      setErro((e as Error).message);
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    carregarDados();
+  }, [carregarDados]);
+
+  const handleMudarEtapa = async () => {
+    if (!processo || !novaEtapa || !user) return;
+    setSalvando(true);
+    setErroModal(null);
+
+    try {
+      await mudarEtapa(processo.id, novaEtapa, observacoes, user.id);
+      setIsModalOpen(false);
+      setNovaEtapa("");
+      setObservacoes("");
+      setLoading(true);
+      await carregarDados();
+    } catch (e: unknown) {
+      setErroModal((e as Error).message);
+    } finally {
+      setSalvando(false);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center h-64 text-gray-500">
+        <Loader2 className="h-6 w-6 animate-spin mr-2" />
+        Carregando processo...
+      </div>
+    );
+  }
+
+  if (erro || !processo) {
     return (
       <div className="p-8">
         <div className="text-center py-12">
           <AlertCircle className="h-16 w-16 text-gray-400 mx-auto mb-4" />
-          <h2 className="text-2xl font-bold text-gray-900 mb-2">
-            Processo não encontrado
-          </h2>
+          <h2 className="text-2xl font-bold text-gray-900 mb-2">Processo não encontrado</h2>
           <p className="text-gray-500 mb-6">
-            O processo solicitado não existe ou foi removido.
+            {erro || "O processo solicitado não existe ou foi removido."}
           </p>
           <Link to="/processos">
             <Button>
@@ -71,14 +123,6 @@ export default function ProcessDetail() {
       </div>
     );
   }
-
-  const handleMudarEtapa = () => {
-    // Aqui seria feita a chamada à API
-    console.log("Mudando etapa para:", novaEtapa, "Observações:", observacoes);
-    setIsModalOpen(false);
-    setNovaEtapa("");
-    setObservacoes("");
-  };
 
   return (
     <div className="p-8">
@@ -147,36 +191,39 @@ export default function ProcessDetail() {
                 <div className="flex items-start gap-3">
                   <Calendar className="h-5 w-5 text-gray-400 mt-0.5" />
                   <div>
-                    <p className="text-sm text-gray-500">Data de Início</p>
+                    <p className="text-sm text-gray-500">Data de Início da Etapa</p>
                     <p className="font-medium">
                       {format(processo.dataInicio, "dd/MM/yyyy", { locale: ptBR })}
                     </p>
                   </div>
                 </div>
 
-                <div className="flex items-start gap-3">
-                  <Clock className="h-5 w-5 text-gray-400 mt-0.5" />
-                  <div>
-                    <p className="text-sm text-gray-500">Prazo Final</p>
-                    <p className="font-medium">
-                      {format(processo.prazoFinal, "dd/MM/yyyy", { locale: ptBR })}
-                    </p>
-                    {processo.status !== 'concluido' && (
-                      <p className={`text-sm mt-1 ${
-                        processo.diasRestantes < 0 
-                          ? 'text-red-600 font-semibold' 
-                          : processo.diasRestantes <= 5 
-                          ? 'text-yellow-600' 
-                          : 'text-green-600'
-                      }`}>
-                        {processo.diasRestantes < 0 
-                          ? `${Math.abs(processo.diasRestantes)} dias em atraso` 
-                          : `${processo.diasRestantes} dias restantes`
-                        }
+                {processo.prazoFinal && (
+                  <div className="flex items-start gap-3">
+                    <Clock className="h-5 w-5 text-gray-400 mt-0.5" />
+                    <div>
+                      <p className="text-sm text-gray-500">Prazo Final</p>
+                      <p className="font-medium">
+                        {format(processo.prazoFinal, "dd/MM/yyyy", { locale: ptBR })}
                       </p>
-                    )}
+                      {processo.status !== "concluido" && processo.diasRestantes !== null && (
+                        <p
+                          className={`text-sm mt-1 ${
+                            processo.diasRestantes < 0
+                              ? "text-red-600 font-semibold"
+                              : processo.diasRestantes <= 5
+                              ? "text-yellow-600"
+                              : "text-green-600"
+                          }`}
+                        >
+                          {processo.diasRestantes < 0
+                            ? `${Math.abs(processo.diasRestantes)} dias em atraso`
+                            : `${processo.diasRestantes} dias restantes`}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
 
               {processo.observacoes && (
@@ -203,16 +250,16 @@ export default function ProcessDetail() {
                   {timeline.map((event, index) => (
                     <div key={event.id} className="flex gap-4">
                       <div className="flex flex-col items-center">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                          index === timeline.length - 1 
-                            ? 'bg-blue-100' 
-                            : 'bg-gray-100'
-                        }`}>
-                          {index === timeline.length - 1 ? (
-                            <CheckCircle2 className="h-4 w-4 text-blue-600" />
-                          ) : (
-                            <CheckCircle2 className="h-4 w-4 text-gray-400" />
-                          )}
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                            index === timeline.length - 1 ? "bg-blue-100" : "bg-gray-100"
+                          }`}
+                        >
+                          <CheckCircle2
+                            className={`h-4 w-4 ${
+                              index === timeline.length - 1 ? "text-blue-600" : "text-gray-400"
+                            }`}
+                          />
                         </div>
                         {index < timeline.length - 1 && (
                           <div className="w-0.5 h-full bg-gray-200 mt-2" />
@@ -228,12 +275,8 @@ export default function ProcessDetail() {
                             {format(event.data, "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
                           </span>
                         </div>
-                        <p className="text-sm font-medium text-gray-900 mb-1">
-                          {event.acao}
-                        </p>
-                        <p className="text-xs text-gray-600">
-                          Por: {event.responsavel}
-                        </p>
+                        <p className="text-sm font-medium text-gray-900 mb-1">{event.acao}</p>
+                        <p className="text-xs text-gray-600">Por: {event.responsavel}</p>
                         {event.observacoes && (
                           <p className="text-xs text-gray-500 mt-2 bg-gray-50 p-2 rounded">
                             {event.observacoes}
@@ -248,7 +291,7 @@ export default function ProcessDetail() {
           </Card>
         </div>
 
-        {/* Coluna Lateral - Ações */}
+        {/* Coluna Lateral */}
         <div className="space-y-6">
           {/* Etapa Atual */}
           <Card>
@@ -265,7 +308,10 @@ export default function ProcessDetail() {
 
               <Dialog open={isModalOpen} onOpenChange={setIsModalOpen}>
                 <DialogTrigger asChild>
-                  <Button className="w-full mt-4" disabled={processo.status === 'concluido'}>
+                  <Button
+                    className="w-full mt-4"
+                    disabled={processo.status === "concluido"}
+                  >
                     <Edit className="h-4 w-4 mr-2" />
                     Mudar Etapa
                   </Button>
@@ -281,7 +327,10 @@ export default function ProcessDetail() {
                   <div className="space-y-4 py-4">
                     <div className="space-y-2">
                       <Label htmlFor="etapa">Nova Etapa</Label>
-                      <Select value={novaEtapa} onValueChange={setNovaEtapa}>
+                      <Select
+                        value={novaEtapa}
+                        onValueChange={(v) => setNovaEtapa(v as ProcessStage)}
+                      >
                         <SelectTrigger id="etapa">
                           <SelectValue placeholder="Selecione a etapa" />
                         </SelectTrigger>
@@ -312,14 +361,27 @@ export default function ProcessDetail() {
                         rows={4}
                       />
                     </div>
+
+                    {erroModal && (
+                      <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-2">
+                        {erroModal}
+                      </p>
+                    )}
                   </div>
 
                   <DialogFooter>
-                    <Button variant="outline" onClick={() => setIsModalOpen(false)}>
+                    <Button variant="outline" onClick={() => setIsModalOpen(false)} disabled={salvando}>
                       Cancelar
                     </Button>
-                    <Button onClick={handleMudarEtapa} disabled={!novaEtapa}>
-                      Confirmar Mudança
+                    <Button onClick={handleMudarEtapa} disabled={!novaEtapa || salvando}>
+                      {salvando ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Salvando...
+                        </>
+                      ) : (
+                        "Confirmar Mudança"
+                      )}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -333,15 +395,15 @@ export default function ProcessDetail() {
               <CardTitle className="text-base">Ações Rápidas</CardTitle>
             </CardHeader>
             <CardContent className="space-y-2">
-              <Button variant="outline" className="w-full justify-start">
+              <Button variant="outline" className="w-full justify-start" disabled>
                 <FileText className="h-4 w-4 mr-2" />
                 Gerar Relatório
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button variant="outline" className="w-full justify-start" disabled>
                 <MessageSquare className="h-4 w-4 mr-2" />
                 Adicionar Comentário
               </Button>
-              <Button variant="outline" className="w-full justify-start">
+              <Button variant="outline" className="w-full justify-start" disabled>
                 <Calendar className="h-4 w-4 mr-2" />
                 Agendar Lembrete
               </Button>
@@ -349,18 +411,16 @@ export default function ProcessDetail() {
           </Card>
 
           {/* Alerta de Prazo */}
-          {processo.status === 'vencido' && (
+          {processo.status === "vencido" && processo.diasRestantes !== null && (
             <Card className="border-red-200 bg-red-50">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-3">
                   <AlertCircle className="h-5 w-5 text-red-600 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-red-900 mb-1">
-                      Prazo Vencido
-                    </p>
+                    <p className="font-semibold text-red-900 mb-1">Prazo Vencido</p>
                     <p className="text-sm text-red-700">
-                      Este processo está {Math.abs(processo.diasRestantes)} dias em atraso.
-                      Ação urgente necessária.
+                      Este processo está {Math.abs(processo.diasRestantes)} dias em atraso. Ação
+                      urgente necessária.
                     </p>
                   </div>
                 </div>
@@ -368,18 +428,16 @@ export default function ProcessDetail() {
             </Card>
           )}
 
-          {processo.status === 'atencao' && (
+          {processo.status === "atencao" && processo.diasRestantes !== null && (
             <Card className="border-yellow-200 bg-yellow-50">
               <CardContent className="pt-6">
                 <div className="flex items-start gap-3">
                   <Clock className="h-5 w-5 text-yellow-600 mt-0.5" />
                   <div>
-                    <p className="font-semibold text-yellow-900 mb-1">
-                      Atenção ao Prazo
-                    </p>
+                    <p className="font-semibold text-yellow-900 mb-1">Atenção ao Prazo</p>
                     <p className="text-sm text-yellow-700">
-                      Restam apenas {processo.diasRestantes} dias para conclusão.
-                      Acompanhe de perto.
+                      Restam apenas {processo.diasRestantes} dias para conclusão. Acompanhe de
+                      perto.
                     </p>
                   </div>
                 </div>

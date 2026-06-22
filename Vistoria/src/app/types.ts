@@ -24,8 +24,8 @@ export interface Process {
   etapaAtual: ProcessStage;
   responsavel: string;
   dataInicio: Date;
-  prazoFinal: Date;
-  diasRestantes: number;
+  prazoFinal: Date | null;      // null quando a etapa não tem SLA
+  diasRestantes: number | null; // null quando a etapa não tem SLA
   status: ProcessStatus;
   prioridade: 'alta' | 'media' | 'baixa';
   observacoes?: string;
