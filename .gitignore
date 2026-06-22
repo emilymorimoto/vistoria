@@ -1,0 +1,19 @@
+# Dependências
+node_modules/
+Vistoria/node_modules/
+
+# Build
+dist/
+Vistoria/dist/
+
+# Variáveis de ambiente (chaves) — não subir
+.env
+.env.local
+*.local
+
+# Configuração local do Claude / máquina
+.claude/
+
+# Sistema
+.DS_Store
+*.log
