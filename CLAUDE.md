@@ -14,7 +14,26 @@ manutenção → relocação** de imóveis, substituindo planilhas manuais. A us
 - ✅ Protótipo (frontend React) em `./Vistoria/` — exportado do Figma Make, **dados mockados**.
 - ✅ Banco Fase 1 criado no Supabase (schema.sql rodado com sucesso).
 - ✅ Repositório: https://github.com/emilymorimoto/vistoria (privado).
-- ⏭️ **Próximo:** Marco 3 — conectar o app ao Supabase e trocar mock por dados reais.
+- ✅ Conexão com o Supabase montada: `Vistoria/src/app/lib/supabase.ts` + `Vistoria/.env.local`
+  (já preenchido com URL e publishable key; o `.env.local` NÃO vai pro git).
+- ✅ `@supabase/supabase-js` instalado. Dados de exemplo em `supabase/seed.sql` (opcional).
+- ⏭️ **Próximo:** Marco 3/4 — login + telas lendo dados reais (ver "Runway" abaixo).
+
+## Runway do Marco 3 (para a próxima sessão no Terminal)
+**Atenção à ordem:** o RLS do banco usa políticas `to authenticated`. Ou seja, **as telas só
+conseguem ler dados depois do login**. Então faça login (Marco 4) JUNTO com a leitura (Marco 3).
+
+Passos sugeridos:
+1. (Opcional) Rodar `supabase/seed.sql` no SQL Editor do Supabase para ter alguns processos de exemplo.
+2. **Login (Supabase Auth, e-mail/senha):** criar tela de login usando o cliente `supabase` de
+   `src/app/lib/supabase.ts`; proteger as rotas em `src/app/routes.ts` (só entra logado).
+   Criar o 1º usuário em Supabase → Authentication → Add user (o trigger cria o `colaborador`).
+3. **Camada de dados** (ex.: `src/app/data/api.ts`): buscar `processo` com join de `imovel` e
+   `inquilino`; mapear para o tipo `Process` de `types.ts`. Calcular `diasRestantes` a partir de
+   `data_inicio_etapa` + `etapa_sla` (só `aviso-desocupacao`=30 e `tratativas`=15 têm prazo).
+4. Trocar `mockData` por chamadas reais, nesta ordem: `ProcessList` → `KanbanView` → `Dashboard`
+   → `ProcessDetail`. "Mudar etapa" deve gravar em `processo` e inserir linha em `timeline`.
+5. Tela **"criar processo"** (não existe no protótipo).
 
 ## Stack
 Frontend: React 18 + Vite + Tailwind v4 + shadcn/ui + react-router 7 (em `./Vistoria/`).
