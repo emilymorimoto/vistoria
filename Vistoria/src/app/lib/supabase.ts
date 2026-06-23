@@ -7,9 +7,9 @@ const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY as string;
 
 if (!supabaseUrl || !supabaseAnonKey) {
-  // Ajuda a diagnosticar quando o .env.local não foi configurado.
-  console.error(
-    "Supabase não configurado: defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY em Vistoria/.env.local"
+  throw new Error(
+    "CONFIGURAÇÃO INCOMPLETA: As variáveis VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY não estão definidas. " +
+    "Verifique o arquivo .env.local (desenvolvimento) ou as variáveis de ambiente na Vercel (produção)."
   );
 }
 
