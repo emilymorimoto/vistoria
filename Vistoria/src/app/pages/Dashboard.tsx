@@ -1,94 +1,53 @@
-import { useState, useEffect } from "react";
-import { getProcessos } from "../data/api";
-import { Process, STAGE_LABELS } from "../types";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
-import {
-  Clock,
-  AlertCircle,
-  CheckCircle2,
+import { mockProcesses } from "../data/mockData";
+import { 
+  Clock, 
+  AlertCircle, 
+  CheckCircle2, 
   FileText,
-  AlertTriangle,
-  Loader2,
+  TrendingUp,
+  AlertTriangle
 } from "lucide-react";
 import { Link } from "react-router";
 import StatusBadge from "../components/StatusBadge";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  PieChart,
-  Pie,
-  Cell,
-  Legend,
-} from "recharts";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { STAGE_LABELS } from "../types";
 
 export default function Dashboard() {
-  const [processos, setProcessos] = useState<Process[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
+  // KPIs
+  const totalProcessos = mockProcesses.length;
+  const noPrazo = mockProcesses.filter(p => p.status === 'no-prazo').length;
+  const atencao = mockProcesses.filter(p => p.status === 'atencao').length;
+  const vencidos = mockProcesses.filter(p => p.status === 'vencido').length;
+  const concluidos = mockProcesses.filter(p => p.status === 'concluido').length;
 
-  useEffect(() => {
-    getProcessos()
-      .then(setProcessos)
-      .catch((e) => setErro(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-
-  const totalProcessos = processos.length;
-  const noPrazo = processos.filter((p) => p.status === "no-prazo").length;
-  const atencao = processos.filter((p) => p.status === "atencao").length;
-  const vencidos = processos.filter((p) => p.status === "vencido").length;
-  const concluidos = processos.filter((p) => p.status === "concluido").length;
-
-  const processosCriticos = processos
-    .filter((p) => p.status === "vencido" || p.status === "atencao")
-    .sort((a, b) => (a.diasRestantes ?? 0) - (b.diasRestantes ?? 0))
+  // Processos críticos (vencidos ou com atenção)
+  const processosCriticos = mockProcesses
+    .filter(p => p.status === 'vencido' || p.status === 'atencao')
+    .sort((a, b) => a.diasRestantes - b.diasRestantes)
     .slice(0, 5);
 
-  const processosPorEtapa = processos.reduce(
-    (acc, p) => {
-      const etapa = STAGE_LABELS[p.etapaAtual];
-      acc[etapa] = (acc[etapa] || 0) + 1;
-      return acc;
-    },
-    {} as Record<string, number>
-  );
+  // Dados para gráfico de etapas
+  const processosPorEtapa = mockProcesses.reduce((acc, p) => {
+    const etapa = STAGE_LABELS[p.etapaAtual];
+    acc[etapa] = (acc[etapa] || 0) + 1;
+    return acc;
+  }, {} as Record<string, number>);
 
   const chartDataEtapas = Object.entries(processosPorEtapa)
     .map(([etapa, count]) => ({
-      etapa: etapa.length > 20 ? etapa.substring(0, 20) + "..." : etapa,
-      quantidade: count,
+      etapa: etapa.length > 20 ? etapa.substring(0, 20) + '...' : etapa,
+      quantidade: count
     }))
     .sort((a, b) => b.quantidade - a.quantidade);
 
+  // Dados para gráfico de status
   const chartDataStatus = [
-    { name: "No Prazo", value: noPrazo, color: "#22c55e" },
-    { name: "Atenção", value: atencao, color: "#eab308" },
-    { name: "Vencido", value: vencidos, color: "#ef4444" },
-    { name: "Concluído", value: concluidos, color: "#3b82f6" },
+    { name: 'No Prazo', value: noPrazo, color: '#22c55e' },
+    { name: 'Atenção', value: atencao, color: '#eab308' },
+    { name: 'Vencido', value: vencidos, color: '#ef4444' },
+    { name: 'Concluído', value: concluidos, color: '#3b82f6' }
   ];
-
-  if (loading) {
-    return (
-      <div className="p-8 flex items-center justify-center h-64 text-gray-500">
-        <Loader2 className="h-6 w-6 animate-spin mr-2" />
-        Carregando dashboard...
-      </div>
-    );
-  }
-
-  if (erro) {
-    return (
-      <div className="p-8 text-center text-red-600">
-        <p className="font-semibold">Erro ao carregar dados</p>
-        <p className="text-sm mt-1">{erro}</p>
-      </div>
-    );
-  }
 
   return (
     <div className="p-8">
@@ -101,7 +60,9 @@ export default function Dashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Total de Processos</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Total de Processos
+            </CardTitle>
             <FileText className="h-4 w-4 text-gray-400" />
           </CardHeader>
           <CardContent>
@@ -112,20 +73,24 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">No Prazo</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              No Prazo
+            </CardTitle>
             <CheckCircle2 className="h-4 w-4 text-green-600" />
           </CardHeader>
           <CardContent>
             <div className="text-3xl font-bold text-green-600">{noPrazo}</div>
             <p className="text-xs text-gray-500 mt-1">
-              {totalProcessos > 0 ? ((noPrazo / totalProcessos) * 100).toFixed(0) : 0}% do total
+              {((noPrazo / totalProcessos) * 100).toFixed(0)}% do total
             </p>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Atenção</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Atenção
+            </CardTitle>
             <Clock className="h-4 w-4 text-yellow-600" />
           </CardHeader>
           <CardContent>
@@ -136,7 +101,9 @@ export default function Dashboard() {
 
         <Card>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-sm font-medium text-gray-600">Vencidos</CardTitle>
+            <CardTitle className="text-sm font-medium text-gray-600">
+              Vencidos
+            </CardTitle>
             <AlertCircle className="h-4 w-4 text-red-600" />
           </CardHeader>
           <CardContent>
@@ -147,53 +114,52 @@ export default function Dashboard() {
       </div>
 
       {/* Gráficos */}
-      {totalProcessos > 0 && (
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
-          <Card>
-            <CardHeader>
-              <CardTitle>Processos por Etapa</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartDataEtapas}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="etapa" angle={-45} textAnchor="end" height={100} fontSize={12} />
-                  <YAxis />
-                  <Tooltip />
-                  <Bar dataKey="quantidade" fill="#3b82f6" />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Processos por Etapa</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={chartDataEtapas}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="etapa" angle={-45} textAnchor="end" height={100} fontSize={12} />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="quantidade" fill="#3b82f6" />
+              </BarChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
 
-          <Card>
-            <CardHeader>
-              <CardTitle>Distribuição por Status</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={chartDataStatus.filter((d) => d.value > 0)}
-                    cx="50%"
-                    cy="50%"
-                    labelLine={false}
-                    label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                    outerRadius={80}
-                    dataKey="value"
-                  >
-                    {chartDataStatus.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-        </div>
-      )}
+        <Card>
+          <CardHeader>
+            <CardTitle>Distribuição por Status</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={chartDataStatus}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                  outerRadius={80}
+                  fill="#8884d8"
+                  dataKey="value"
+                >
+                  {chartDataStatus.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={entry.color} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Processos Críticos */}
       <Card>
@@ -225,31 +191,31 @@ export default function Dashboard() {
                   <div className="flex items-start justify-between mb-2">
                     <div className="flex-1">
                       <div className="flex items-center gap-2 mb-1">
-                        <span className="font-semibold text-gray-900">{processo.codigo}</span>
+                        <span className="font-semibold text-gray-900">
+                          {processo.codigo}
+                        </span>
                         <StatusBadge status={processo.status} />
                       </div>
                       <p className="text-sm text-gray-600">{processo.imovel}</p>
                       <p className="text-xs text-gray-500">{processo.endereco}</p>
                     </div>
-                    {processo.diasRestantes !== null && (
-                      <div className="text-right">
-                        {processo.status === "vencido" ? (
-                          <div className="text-red-600">
-                            <p className="font-semibold">
-                              {Math.abs(processo.diasRestantes)} dias em atraso
-                            </p>
-                            <p className="text-xs">Ação urgente</p>
-                          </div>
-                        ) : (
-                          <div className="text-yellow-600">
-                            <p className="font-semibold">
-                              {processo.diasRestantes} dias restantes
-                            </p>
-                            <p className="text-xs">Atenção necessária</p>
-                          </div>
-                        )}
-                      </div>
-                    )}
+                    <div className="text-right">
+                      {processo.status === 'vencido' ? (
+                        <div className="text-red-600">
+                          <p className="font-semibold">
+                            {Math.abs(processo.diasRestantes)} dias em atraso
+                          </p>
+                          <p className="text-xs">Ação urgente</p>
+                        </div>
+                      ) : (
+                        <div className="text-yellow-600">
+                          <p className="font-semibold">
+                            {processo.diasRestantes} dias restantes
+                          </p>
+                          <p className="text-xs">Atenção necessária</p>
+                        </div>
+                      )}
+                    </div>
                   </div>
                   <div className="flex items-center gap-4 text-xs text-gray-500 mt-3 pt-3 border-t border-gray-100">
                     <span>Etapa: {STAGE_LABELS[processo.etapaAtual]}</span>

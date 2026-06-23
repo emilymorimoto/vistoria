@@ -11,29 +11,26 @@ manutenção → relocação** de imóveis, substituindo planilhas manuais. A us
 - `supabase/schema.sql` — banco da Fase 1 (já rodado no Supabase).
 
 ## Estado atual (atualizar conforme avança)
-- ✅ Protótipo (frontend React) em `./Vistoria/` — exportado do Figma Make, **dados mockados**.
+- ✅ Protótipo (frontend React) em `./Vistoria/` — exportado do Figma Make.
 - ✅ Banco Fase 1 criado no Supabase (schema.sql rodado com sucesso).
 - ✅ Repositório: https://github.com/emilymorimoto/vistoria (privado).
 - ✅ Conexão com o Supabase montada: `Vistoria/src/app/lib/supabase.ts` + `Vistoria/.env.local`
   (já preenchido com URL e publishable key; o `.env.local` NÃO vai pro git).
 - ✅ `@supabase/supabase-js` instalado. Dados de exemplo em `supabase/seed.sql` (opcional).
-- ⏭️ **Próximo:** Marco 3/4 — login + telas lendo dados reais (ver "Runway" abaixo).
+- ✅ **Marco 3** — Camada de dados real (`src/app/data/api.ts`): todas as telas lendo do Supabase.
+- ✅ **Marco 4** — Login com Supabase Auth; rotas protegidas; logout no sidebar.
+- ✅ **Marco 5 parcial** — "Mudar etapa" salva no banco + grava na timeline; tela "Criar Processo".
+- ✅ **Marco 7** — Publicado na Vercel: https://vistoria-sooty.vercel.app
+- ⏭️ **Próximo:** Marco 5 (editar processo/observações) → Marco 6 (prazos e notificações automáticas).
 
-## Runway do Marco 3 (para a próxima sessão no Terminal)
-**Atenção à ordem:** o RLS do banco usa políticas `to authenticated`. Ou seja, **as telas só
-conseguem ler dados depois do login**. Então faça login (Marco 4) JUNTO com a leitura (Marco 3).
-
-Passos sugeridos:
-1. (Opcional) Rodar `supabase/seed.sql` no SQL Editor do Supabase para ter alguns processos de exemplo.
-2. **Login (Supabase Auth, e-mail/senha):** criar tela de login usando o cliente `supabase` de
-   `src/app/lib/supabase.ts`; proteger as rotas em `src/app/routes.ts` (só entra logado).
-   Criar o 1º usuário em Supabase → Authentication → Add user (o trigger cria o `colaborador`).
-3. **Camada de dados** (ex.: `src/app/data/api.ts`): buscar `processo` com join de `imovel` e
-   `inquilino`; mapear para o tipo `Process` de `types.ts`. Calcular `diasRestantes` a partir de
-   `data_inicio_etapa` + `etapa_sla` (só `aviso-desocupacao`=30 e `tratativas`=15 têm prazo).
-4. Trocar `mockData` por chamadas reais, nesta ordem: `ProcessList` → `KanbanView` → `Dashboard`
-   → `ProcessDetail`. "Mudar etapa" deve gravar em `processo` e inserir linha em `timeline`.
-5. Tela **"criar processo"** (não existe no protótipo).
+## Runway do Marco 6 (para a próxima sessão)
+Marco 5 ainda pendente: editar dados do processo (responsável, observações, prioridade).
+Marco 6 — Prazos e notificações automáticas:
+1. Função SQL (ou pg_cron) que recalcula `status` de cada processo com base em `data_inicio_etapa`
+   + `etapa_sla.prazo_dias` e atualiza o campo `status` na tabela `processo`.
+2. Tarefa diária (pg_cron) que gera `notificacao` para o responsável quando prazo está próximo
+   (atenção = 5 dias antes) ou vencido.
+3. Tela de Notificações já lê do banco — só falta a geração automática pelo backend.
 
 ## Stack
 Frontend: React 18 + Vite + Tailwind v4 + shadcn/ui + react-router 7 (em `./Vistoria/`).

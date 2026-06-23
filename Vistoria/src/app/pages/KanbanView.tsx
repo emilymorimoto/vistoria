@@ -1,50 +1,43 @@
-import { useState, useEffect } from "react";
-import { getProcessos } from "../data/api";
-import { Process, ProcessStage, STAGE_LABELS } from "../types";
+import { useState } from "react";
+import { mockProcesses } from "../data/mockData";
 import { Card, CardContent, CardHeader, CardTitle } from "../components/ui/card";
 import { Badge } from "../components/ui/badge";
+import { ProcessStage, STAGE_LABELS } from "../types";
 import StatusBadge from "../components/StatusBadge";
 import { Link } from "react-router";
-import { Calendar, User, Loader2 } from "lucide-react";
+import { Calendar, User } from "lucide-react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 
-const mainStages: ProcessStage[] = [
-  "aviso-desocupacao",
-  "orientacao-inquilino",
-  "agendamento-vistoria",
-  "tratativas",
-  "encaminhamento",
-];
-
-const secondaryStages: ProcessStage[] = [
-  "juridico-cobranca",
-  "execucao",
-  "manutencao",
-  "conferencia",
-  "relocacao",
-  "envio-chaves",
-  "anuncio",
-  "finalizado",
-];
-
 export default function KanbanView() {
-  const [processos, setProcessos] = useState<Process[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [erro, setErro] = useState<string | null>(null);
+  // Etapas principais do fluxo
+  const mainStages: ProcessStage[] = [
+    'aviso-desocupacao',
+    'orientacao-inquilino',
+    'agendamento-vistoria',
+    'tratativas',
+    'encaminhamento'
+  ];
 
-  useEffect(() => {
-    getProcessos()
-      .then(setProcessos)
-      .catch((e) => setErro(e.message))
-      .finally(() => setLoading(false));
-  }, []);
+  const secondaryStages: ProcessStage[] = [
+    'juridico-cobranca',
+    'execucao',
+    'manutencao',
+    'conferencia',
+    'relocacao',
+    'envio-chaves',
+    'anuncio',
+    'finalizado'
+  ];
 
-  const processesByStage = (stage: ProcessStage) =>
-    processos.filter((p) => p.etapaAtual === stage);
+  // Agrupar processos por etapa
+  const processesByStage = (stage: ProcessStage) => {
+    return mockProcesses.filter(p => p.etapaAtual === stage);
+  };
 
   const KanbanColumn = ({ stage }: { stage: ProcessStage }) => {
-    const items = processesByStage(stage);
+    const processes = processesByStage(stage);
+    
     return (
       <div className="flex-shrink-0 w-80">
         <Card className="h-full">
@@ -53,24 +46,34 @@ export default function KanbanView() {
               <CardTitle className="text-sm font-semibold">
                 {STAGE_LABELS[stage]}
               </CardTitle>
-              <Badge variant="secondary">{items.length}</Badge>
+              <Badge variant="secondary">{processes.length}</Badge>
             </div>
           </CardHeader>
           <CardContent className="space-y-3 max-h-[calc(100vh-250px)] overflow-y-auto">
-            {items.length === 0 ? (
+            {processes.length === 0 ? (
               <p className="text-sm text-gray-400 text-center py-8">
                 Nenhum processo nesta etapa
               </p>
             ) : (
-              items.map((processo) => (
-                <Link key={processo.id} to={`/processo/${processo.id}`} className="block">
+              processes.map((processo) => (
+                <Link
+                  key={processo.id}
+                  to={`/processo/${processo.id}`}
+                  className="block"
+                >
                   <Card className="hover:shadow-md transition-shadow cursor-pointer border-l-4 border-l-blue-500">
                     <CardContent className="p-4">
                       <div className="space-y-3">
                         <div>
-                          <p className="font-semibold text-sm mb-1">{processo.codigo}</p>
-                          <p className="text-sm text-gray-700">{processo.imovel}</p>
-                          <p className="text-xs text-gray-500 mt-1">{processo.inquilino}</p>
+                          <p className="font-semibold text-sm mb-1">
+                            {processo.codigo}
+                          </p>
+                          <p className="text-sm text-gray-700">
+                            {processo.imovel}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {processo.inquilino}
+                          </p>
                         </div>
 
                         <div className="flex items-center gap-2">
@@ -82,29 +85,26 @@ export default function KanbanView() {
                             <User className="h-3 w-3" />
                             <span>{processo.responsavel}</span>
                           </div>
-                          {processo.prazoFinal && (
-                            <div className="flex items-center gap-2">
-                              <Calendar className="h-3 w-3" />
-                              <span>
-                                {format(processo.prazoFinal, "dd/MM/yyyy", { locale: ptBR })}
-                              </span>
-                            </div>
-                          )}
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-3 w-3" />
+                            <span>
+                              {format(processo.prazoFinal, "dd/MM/yyyy", { locale: ptBR })}
+                            </span>
+                          </div>
                         </div>
 
-                        {processo.status !== "concluido" && processo.diasRestantes !== null && (
-                          <div
-                            className={`text-xs font-medium pt-2 border-t ${
-                              processo.diasRestantes < 0
-                                ? "text-red-600"
-                                : processo.diasRestantes <= 5
-                                ? "text-yellow-600"
-                                : "text-green-600"
-                            }`}
-                          >
-                            {processo.diasRestantes < 0
-                              ? `⚠️ ${Math.abs(processo.diasRestantes)} dias em atraso`
-                              : `${processo.diasRestantes} dias restantes`}
+                        {processo.status !== 'concluido' && (
+                          <div className={`text-xs font-medium pt-2 border-t ${
+                            processo.diasRestantes < 0 
+                              ? 'text-red-600' 
+                              : processo.diasRestantes <= 5 
+                              ? 'text-yellow-600' 
+                              : 'text-green-600'
+                          }`}>
+                            {processo.diasRestantes < 0 
+                              ? `⚠️ ${Math.abs(processo.diasRestantes)} dias em atraso` 
+                              : `${processo.diasRestantes} dias restantes`
+                            }
                           </div>
                         )}
                       </div>
@@ -119,31 +119,16 @@ export default function KanbanView() {
     );
   };
 
-  if (loading) {
-    return (
-      <div className="p-8 flex items-center justify-center h-64 text-gray-500">
-        <Loader2 className="h-6 w-6 animate-spin mr-2" />
-        Carregando kanban...
-      </div>
-    );
-  }
-
-  if (erro) {
-    return (
-      <div className="p-8 text-center text-red-600">
-        <p className="font-semibold">Erro ao carregar dados</p>
-        <p className="text-sm mt-1">{erro}</p>
-      </div>
-    );
-  }
-
   return (
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-gray-900">Visão Kanban</h1>
-        <p className="text-gray-500 mt-1">Acompanhe o fluxo dos processos por etapa</p>
+        <p className="text-gray-500 mt-1">
+          Acompanhe o fluxo dos processos por etapa
+        </p>
       </div>
 
+      {/* Etapas Principais */}
       <div className="mb-8">
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Fluxo Principal (até 30 dias)
@@ -155,6 +140,7 @@ export default function KanbanView() {
         </div>
       </div>
 
+      {/* Etapas Secundárias */}
       <div>
         <h2 className="text-lg font-semibold text-gray-900 mb-4">
           Ramificações e Complementares
